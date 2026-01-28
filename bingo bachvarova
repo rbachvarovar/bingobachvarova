@@ -1,0 +1,734 @@
+<!DOCTYPE html>
+<html lang="bg">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Математическо бинго – Събиране и изваждане до 20</title>
+  <style>
+    :root{
+      --bg1:#6b2aa6;
+      --bg2:#4a1f82;
+      --panel:#ffffff;
+      --panel2:#f3f0ff;
+      --text:#1f1f1f;
+      --muted:#6d6d6d;
+      --btn:#1ea7ff;
+      --btn2:#7a36c9;
+      --ok:#1fbf75;
+      --bad:#ff3b4e;
+      --shadow: 0 18px 45px rgba(0,0,0,.25);
+      --ball-grad: radial-gradient(circle at 35% 35%, #ffffff 0%, #cfe4ff 30%, #3b86d6 78%, #1c4f86 100%);
+    }
+
+    *{box-sizing:border-box}
+    html,body{height:100%; margin:0; font-family: system-ui, -apple-system, "Segoe UI", Arial, sans-serif;}
+    body{
+      background: radial-gradient(circle at 30% 25%, #7a3ac6 0%, var(--bg1) 35%, var(--bg2) 100%);
+      overflow:hidden;
+      color:white;
+    }
+
+    /* Top bar */
+    .topbar{
+      position:fixed;
+      top:0; left:0; right:0;
+      height:64px;
+      display:flex;
+      align-items:center;
+      justify-content:center;
+      padding:0 18px;
+      z-index:10;
+    }
+    .topbar-inner{
+      width:min(1200px, 100%);
+      display:flex;
+      align-items:center;
+      justify-content:space-between;
+      gap:12px;
+    }
+    .back{
+      display:flex; align-items:center; gap:10px;
+      opacity:.9;
+      user-select:none;
+      font-weight:600;
+    }
+    .title{
+      font-weight:800;
+      letter-spacing:.2px;
+      text-align:center;
+      flex:1;
+    }
+    .score{
+      display:flex; gap:18px; align-items:flex-end;
+      text-align:right;
+    }
+    .score .box{
+      display:flex; flex-direction:column; align-items:flex-end;
+      line-height:1;
+      opacity:.95;
+    }
+    .score .num{font-size:28px; font-weight:900;}
+    .score .lbl{font-size:12px; opacity:.85; margin-top:6px;}
+
+    /* Main layout */
+    .wrap{
+      height:100%;
+      padding-top:78px;
+      padding-bottom:22px;
+      display:flex;
+      align-items:center;
+      justify-content:center;
+    }
+    .grid{
+      width:min(1200px, 96vw);
+      display:grid;
+      grid-template-columns: 1.05fr .95fr;
+      gap:34px;
+      align-items:center;
+    }
+
+    /* Left: task card */
+    .task-area{
+      display:flex;
+      flex-direction:column;
+      align-items:center;
+      gap:14px;
+    }
+
+    .levelbar{
+      width:min(520px, 92%);
+      display:flex;
+      gap:10px;
+      flex-wrap:wrap;
+      justify-content:center;
+    }
+    .chip{
+      border:none;
+      cursor:pointer;
+      padding:10px 14px;
+      border-radius:999px;
+      background: rgba(255,255,255,.14);
+      color:white;
+      font-weight:700;
+      box-shadow: 0 10px 22px rgba(0,0,0,.12);
+      transition:.15s transform, .15s background;
+    }
+    .chip:hover{transform:translateY(-1px)}
+    .chip.active{
+      background: rgba(255,255,255,.95);
+      color:#3a1670;
+    }
+
+    .card{
+      width:min(520px, 92%);
+      background: var(--panel2);
+      color: var(--text);
+      border-radius:18px;
+      padding:22px;
+      box-shadow: var(--shadow);
+      display:flex;
+      flex-direction:column;
+      gap:14px;
+      position:relative;
+      overflow:hidden;
+    }
+    .card .task{
+      font-size:62px;
+      font-weight:900;
+      letter-spacing:.3px;
+      text-align:left;
+      padding:12px 8px;
+    }
+    .subrow{
+      display:flex;
+      align-items:center;
+      justify-content:space-between;
+      gap:14px;
+      padding:0 6px;
+      color:var(--muted);
+      font-weight:700;
+    }
+    .pill{
+      background:#ffffff;
+      border:1px solid rgba(0,0,0,.08);
+      padding:8px 12px;
+      border-radius:999px;
+      font-size:13px;
+      color:#2a2a2a;
+    }
+
+    .btnrow{
+      display:flex;
+      gap:12px;
+      justify-content:flex-start;
+      padding:6px 6px 0 6px;
+      flex-wrap:wrap;
+    }
+    .btn{
+      border:none;
+      cursor:pointer;
+      padding:14px 18px;
+      border-radius:12px;
+      font-weight:900;
+      letter-spacing:.2px;
+      color:white;
+      background: var(--btn);
+      box-shadow: 0 12px 24px rgba(0,0,0,.18);
+      transition:.15s transform, .15s filter, .15s opacity;
+      user-select:none;
+    }
+    .btn:hover{transform:translateY(-1px)}
+    .btn:disabled{opacity:.55; cursor:not-allowed; transform:none}
+    .btn.secondary{
+      background: rgba(0,0,0,.12);
+      color:#2b2b2b;
+      background: #e9e6ff;
+    }
+
+    /* Feedback banner */
+    .feedback{
+      position:absolute;
+      inset:auto 0 0 0;
+      padding:12px 16px;
+      font-weight:900;
+      display:flex;
+      justify-content:center;
+      transform:translateY(100%);
+      transition:.22s transform;
+    }
+    .feedback.show{transform:translateY(0%)}
+    .feedback.ok{background: linear-gradient(90deg, rgba(31,191,117,.18), rgba(31,191,117,.08)); color:#0b5d36}
+    .feedback.bad{background: linear-gradient(90deg, rgba(255,59,78,.18), rgba(255,59,78,.08)); color:#7a0c19}
+
+    /* Confetti */
+    .confetti{
+      position:absolute;
+      top:-10px;
+      left:0;
+      right:0;
+      height:0;
+      pointer-events:none;
+    }
+    .confetti i{
+      position:absolute;
+      width:10px;
+      height:16px;
+      background: rgba(255,255,255,.9);
+      border-radius:3px;
+      animation: fall 900ms linear forwards;
+      opacity:.95;
+    }
+    @keyframes fall{
+      0%{transform: translateY(-30px) rotate(0deg); opacity:1}
+      100%{transform: translateY(340px) rotate(340deg); opacity:0}
+    }
+
+    /* Right: sphere + answers */
+    .right{
+      display:flex;
+      flex-direction:column;
+      align-items:center;
+      gap:16px;
+    }
+    .sphere-wrap{
+      display:flex;
+      flex-direction:column;
+      align-items:center;
+      gap:12px;
+    }
+    #sphere{
+      width:420px;
+      height:420px;
+      border-radius:50%;
+      position:relative;
+      overflow:hidden;
+      background: rgba(255,255,255,.05);
+      border: 14px solid rgba(255,255,255,.18);
+      box-shadow: inset 0 0 90px rgba(0,0,0,.35), 0 22px 60px rgba(0,0,0,.25);
+    }
+    .ball{
+      position:absolute;
+      width:44px; height:44px;
+      border-radius:50%;
+      background: var(--ball-grad);
+      display:flex;
+      align-items:center;
+      justify-content:center;
+      color:#1f2a33;
+      font-weight:900;
+      font-size:16px;
+      border: 1px solid rgba(255,255,255,.35);
+      box-shadow: 4px 10px 18px rgba(0,0,0,.35);
+      user-select:none;
+    }
+
+    .answers{
+      width:min(420px, 92%);
+      display:grid;
+      grid-template-columns: repeat(6, 1fr);
+      gap:10px;
+    }
+    .ans{
+      border:none;
+      cursor:pointer;
+      padding:12px 0;
+      border-radius:999px;
+      font-weight:900;
+      color:#2a2a2a;
+      background: rgba(255,255,255,.92);
+      box-shadow: 0 10px 22px rgba(0,0,0,.16);
+      transition:.12s transform, .12s filter;
+      user-select:none;
+    }
+    .ans:hover{transform:translateY(-1px)}
+    .ans:disabled{opacity:.5; cursor:not-allowed; transform:none}
+    .ans.okflash{outline: 3px solid rgba(31,191,117,.9)}
+    .ans.badflash{outline: 3px solid rgba(255,59,78,.9)}
+
+    .hint{
+      width:min(420px, 92%);
+      text-align:center;
+      opacity:.9;
+      font-weight:700;
+      background: rgba(0,0,0,.12);
+      border:1px solid rgba(255,255,255,.14);
+      border-radius:14px;
+      padding:10px 12px;
+    }
+
+    /* Responsive */
+    @media (max-width: 980px){
+      body{overflow:auto}
+      .wrap{padding-top:72px}
+      .grid{grid-template-columns:1fr; gap:18px}
+      #sphere{width:360px;height:360px}
+      .answers{grid-template-columns: repeat(5, 1fr)}
+      .card .task{font-size:54px}
+    }
+  </style>
+</head>
+
+<body>
+  <div class="topbar">
+    <div class="topbar-inner">
+      <div class="back">← <span style="opacity:.9">Назад</span></div>
+      <div class="title" id="levelTitle">Ниво 1: До 10</div>
+      <div class="score">
+        <div class="box">
+          <div class="num" id="points">0</div>
+          <div class="lbl">Точки</div>
+        </div>
+        <div class="box">
+          <div class="num" id="solved">0</div>
+          <div class="lbl">Решени</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="wrap">
+    <div class="grid">
+
+      <!-- LEFT -->
+      <div class="task-area">
+        <div class="levelbar">
+          <button class="chip active" data-level="1">Ниво 1: до 10</button>
+          <button class="chip" data-level="2">Ниво 2: до 20 (без преминаване)</button>
+          <button class="chip" data-level="3">Ниво 3: до 20 (с преминаване)</button>
+        </div>
+
+        <div class="card" id="taskCard">
+          <div class="confetti" id="confetti"></div>
+
+          <div class="subrow">
+            <div class="pill">Остават: <span id="leftCount">10</span></div>
+            <div class="pill">Изтегляне № <span id="drawNo">0</span></div>
+          </div>
+
+          <div class="task" id="taskText">Натисни „ИЗТЕГЛИ“</div>
+
+          <div class="btnrow">
+            <button class="btn" id="drawBtn">ИЗТЕГЛИ</button>
+            <button class="btn secondary" id="resetBtn">НОВА ИГРА</button>
+          </div>
+
+          <div class="feedback" id="feedback"></div>
+        </div>
+      </div>
+
+      <!-- RIGHT -->
+      <div class="right">
+        <div class="sphere-wrap">
+          <div id="sphere" aria-label="Сфера с топчета"></div>
+          <div class="hint" id="hint">Избери верния отговор от числата.</div>
+        </div>
+
+        <div class="answers" id="answers"></div>
+      </div>
+
+    </div>
+  </div>
+
+<script>
+  /* ========= Sounds ========= */
+  const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+
+  function beep(freq, dur, type="sine", gain=0.06){
+    try{
+      const o = audioCtx.createOscillator();
+      const g = audioCtx.createGain();
+      o.type = type;
+      o.frequency.value = freq;
+      o.connect(g);
+      g.connect(audioCtx.destination);
+      g.gain.setValueAtTime(gain, audioCtx.currentTime);
+      g.gain.exponentialRampToValueAtTime(0.00001, audioCtx.currentTime + dur);
+      o.start();
+      o.stop(audioCtx.currentTime + dur);
+    }catch(e){}
+  }
+
+  function okSound(){
+    beep(740, 0.09, "sine", 0.06);
+    setTimeout(()=>beep(980, 0.11, "sine", 0.06), 90);
+    setTimeout(()=>beep(1240, 0.12, "sine", 0.055), 190);
+  }
+
+  function badSound(){
+    beep(220, 0.14, "square", 0.05);
+    setTimeout(()=>beep(165, 0.18, "square", 0.05), 130);
+  }
+
+  function mixSoundStart(){
+    return setInterval(()=>beep(200 + Math.random()*520, 0.08, "square", 0.035), 70);
+  }
+
+  /* ========= Tasks (3 levels, 10 each) =========
+     Ниво 1: до 10 (събиране/изваждане), 10 задачи.
+     Ниво 2: до 20 без преминаване (единици не минават 10).
+     Ниво 3: до 20 с преминаване (напр. 9+8, 14-7 и т.н.).
+  */
+
+  const LEVELS = {
+    1: {
+      title: "Ниво 1: До 10",
+      tasks: [
+        {q:"6 + 3", a:9},
+        {q:"8 - 5", a:3},
+        {q:"4 + 4", a:8},
+        {q:"10 - 6", a:4},
+        {q:"7 + 2", a:9},
+        {q:"9 - 7", a:2},
+        {q:"5 + 1", a:6},
+        {q:"3 + 6", a:9},
+        {q:"8 - 3", a:5},
+        {q:"7 - 4", a:3},
+      ],
+      answersMax: 10
+    },
+    2: {
+      title: "Ниво 2: До 20 (без преминаване)",
+      tasks: [
+        {q:"12 + 3", a:15},
+        {q:"14 - 2", a:12},
+        {q:"11 + 5", a:16},
+        {q:"18 - 6", a:12},
+        {q:"13 + 4", a:17},
+        {q:"16 - 5", a:11},
+        {q:"15 + 2", a:17},
+        {q:"19 - 7", a:12},
+        {q:"10 + 8", a:18},
+        {q:"17 - 4", a:13},
+      ],
+      answersMax: 20
+    },
+    3: {
+      title: "Ниво 3: До 20 (с преминаване)",
+      tasks: [
+        {q:"9 + 8", a:17},
+        {q:"7 + 6", a:13},
+        {q:"8 + 7", a:15},
+        {q:"14 - 7", a:7},
+        {q:"16 - 9", a:7},
+        {q:"13 + 9", a:22, clamp:20},   // ще ограничим отговорите до 20 (виж по-долу) -> тук ще стане 20, но задачата е над 20, затова я заменяме:
+      ],
+      answersMax: 20
+    }
+  };
+
+  // Корекция: при Ниво 3 държим до 20. Заменяме задачата 13+9 (22) с валидна.
+  LEVELS[3].tasks = [
+    {q:"9 + 8", a:17},
+    {q:"7 + 6", a:13},
+    {q:"8 + 7", a:15},
+    {q:"6 + 9", a:15},
+    {q:"5 + 8", a:13},
+    {q:"14 - 7", a:7},
+    {q:"16 - 9", a:7},
+    {q:"12 + 9", a:21}, // над 20 не искаме -> сменяме и това
+  ];
+  // окончателни 10 валидни (<=20):
+  LEVELS[3].tasks = [
+    {q:"9 + 8", a:17},
+    {q:"7 + 6", a:13},
+    {q:"8 + 7", a:15},
+    {q:"6 + 9", a:15},
+    {q:"5 + 8", a:13},
+    {q:"11 + 9", a:20},
+    {q:"14 - 7", a:7},
+    {q:"16 - 9", a:7},
+    {q:"13 - 8", a:5},
+    {q:"15 - 7", a:8},
+  ];
+
+  /* ========= State ========= */
+  let level = 1;
+  let pool = [];
+  let current = null;
+  let drawCount = 0;
+  let points = 0;
+  let solved = 0;
+  let awaitingAnswer = false;
+
+  /* ========= UI refs ========= */
+  const levelTitle = document.getElementById("levelTitle");
+  const taskText = document.getElementById("taskText");
+  const drawBtn = document.getElementById("drawBtn");
+  const resetBtn = document.getElementById("resetBtn");
+  const leftCount = document.getElementById("leftCount");
+  const drawNo = document.getElementById("drawNo");
+  const pointsEl = document.getElementById("points");
+  const solvedEl = document.getElementById("solved");
+  const feedback = document.getElementById("feedback");
+  const confetti = document.getElementById("confetti");
+  const sphere = document.getElementById("sphere");
+  const answers = document.getElementById("answers");
+  const hint = document.getElementById("hint");
+  const chips = Array.from(document.querySelectorAll(".chip"));
+
+  /* ========= Sphere balls animation ========= */
+  const balls = [];
+  let rafId = null;
+
+  function createBalls(count){
+    sphere.innerHTML = "";
+    balls.length = 0;
+
+    const W = sphere.clientWidth;
+    const H = sphere.clientHeight;
+
+    for(let i=0;i<count;i++){
+      const el = document.createElement("div");
+      el.className = "ball";
+      el.textContent = (i+1);
+
+      // random position inside
+      const maxX = W - 44;
+      const maxY = H - 44;
+      el.style.left = (Math.random()*maxX) + "px";
+      el.style.top  = (Math.random()*maxY) + "px";
+
+      sphere.appendChild(el);
+      balls.push({
+        el,
+        vx: (Math.random()*2 - 1),
+        vy: (Math.random()*2 - 1),
+        speed: 1.25
+      });
+    }
+  }
+
+  function animate(){
+    const W = sphere.clientWidth;
+    const H = sphere.clientHeight;
+    const min = 2;
+    const maxX = W - 46;
+    const maxY = H - 46;
+
+    for(const b of balls){
+      if(b.el.style.display === "none") continue;
+
+      let x = parseFloat(b.el.style.left);
+      let y = parseFloat(b.el.style.top);
+
+      if(x <= min || x >= maxX) b.vx *= -1;
+      if(y <= min || y >= maxY) b.vy *= -1;
+
+      b.el.style.left = (x + b.vx*b.speed) + "px";
+      b.el.style.top  = (y + b.vy*b.speed) + "px";
+    }
+
+    rafId = requestAnimationFrame(animate);
+  }
+
+  function setBallSpeed(s){
+    balls.forEach(b => b.speed = s);
+  }
+
+  function hideOneBall(){
+    const visible = balls.filter(b => b.el.style.display !== "none");
+    if(visible.length > 0){
+      visible[0].el.style.display = "none";
+    }
+  }
+
+  /* ========= Answers ========= */
+  function buildAnswers(max){
+    answers.innerHTML = "";
+    // За до 10: 0..10; За до 20: 0..20
+    for(let n=0; n<=max; n++){
+      const btn = document.createElement("button");
+      btn.className = "ans";
+      btn.textContent = n;
+      btn.addEventListener("click", ()=>chooseAnswer(n, btn));
+      answers.appendChild(btn);
+    }
+  }
+
+  function setAnswersEnabled(on){
+    Array.from(answers.querySelectorAll("button")).forEach(b=>{
+      b.disabled = !on;
+      b.classList.remove("okflash","badflash");
+    });
+  }
+
+  /* ========= Feedback + confetti ========= */
+  let fbTimer = null;
+  function showFeedback(type, text){
+    feedback.className = "feedback show " + type;
+    feedback.textContent = text;
+    clearTimeout(fbTimer);
+    fbTimer = setTimeout(()=>{
+      feedback.className = "feedback";
+      feedback.textContent = "";
+    }, 1200);
+  }
+
+  function confettiBurst(){
+    confetti.innerHTML = "";
+    const W = document.getElementById("taskCard").clientWidth;
+    for(let i=0;i<18;i++){
+      const piece = document.createElement("i");
+      piece.style.left = (Math.random()*(W-10)) + "px";
+      piece.style.background = i%3===0 ? "rgba(31,191,117,.9)" : (i%3===1 ? "rgba(255,59,78,.85)" : "rgba(255,255,255,.95)");
+      piece.style.animationDuration = (650 + Math.random()*550) + "ms";
+      confetti.appendChild(piece);
+    }
+    setTimeout(()=>confetti.innerHTML="", 1200);
+  }
+
+  /* ========= Game logic ========= */
+  function setLevel(lv){
+    level = lv;
+    chips.forEach(c => c.classList.toggle("active", Number(c.dataset.level) === lv));
+    levelTitle.textContent = LEVELS[lv].title;
+
+    points = 0; solved = 0; drawCount = 0;
+    pointsEl.textContent = points;
+    solvedEl.textContent = solved;
+
+    pool = LEVELS[lv].tasks.map(x=>({...x}));
+    current = null;
+    awaitingAnswer = false;
+
+    taskText.textContent = "Натисни „ИЗТЕГЛИ“";
+    drawNo.textContent = "0";
+    leftCount.textContent = pool.length;
+
+    createBalls(pool.length);
+    buildAnswers(LEVELS[lv].answersMax);
+    setAnswersEnabled(false);
+
+    hint.textContent = "Избери верния отговор от числата.";
+    drawBtn.disabled = false;
+  }
+
+  function newGame(){
+    setLevel(level);
+  }
+
+  function drawTask(){
+    if(audioCtx.state === "suspended"){ audioCtx.resume(); }
+
+    if(pool.length === 0){
+      taskText.textContent = "Браво! Няма повече задачи.";
+      showFeedback("ok","Играта приключи.");
+      drawBtn.disabled = true;
+      setAnswersEnabled(false);
+      hint.textContent = "Избери „НОВА ИГРА“, за да започнеш отново.";
+      return;
+    }
+
+    drawBtn.disabled = true;
+    setAnswersEnabled(false);
+    awaitingAnswer = false;
+
+    // Mix animation
+    setBallSpeed(16);
+    const mix = mixSoundStart();
+
+    setTimeout(()=>{
+      clearInterval(mix);
+      setBallSpeed(1.25);
+
+      // pick random
+      const idx = Math.floor(Math.random()*pool.length);
+      current = pool.splice(idx,1)[0];
+      drawCount++;
+      drawNo.textContent = String(drawCount);
+      leftCount.textContent = pool.length;
+
+      hideOneBall();
+
+      taskText.textContent = current.q + " = ?";
+      awaitingAnswer = true;
+      setAnswersEnabled(true);
+      drawBtn.disabled = true;
+
+      hint.textContent = "Кликни върху верния отговор.";
+    }, 1100);
+  }
+
+  function chooseAnswer(n, btnEl){
+    if(!awaitingAnswer || !current) return;
+
+    if(audioCtx.state === "suspended"){ audioCtx.resume(); }
+
+    awaitingAnswer = false;
+    setAnswersEnabled(false);
+
+    const correct = (n === current.a);
+
+    if(correct){
+      points += 1;
+      solved += 1;
+      pointsEl.textContent = points;
+      solvedEl.textContent = solved;
+
+      btnEl.classList.add("okflash");
+      okSound();
+      confettiBurst();
+      showFeedback("ok", "ВЯРНО! ✅");
+      hint.textContent = "Супер! Натисни „ИЗТЕГЛИ“ за следваща задача.";
+    }else{
+      btnEl.classList.add("badflash");
+      badSound();
+      showFeedback("bad", "ГРЕШНО ❌ Верният отговор е: " + current.a);
+      hint.textContent = "Опитай следващата задача – натисни „ИЗТЕГЛИ“.";
+    }
+
+    // allow next draw
+    drawBtn.disabled = false;
+  }
+
+  /* ========= Events ========= */
+  drawBtn.addEventListener("click", drawTask);
+  resetBtn.addEventListener("click", newGame);
+  chips.forEach(ch => ch.addEventListener("click", ()=>setLevel(Number(ch.dataset.level))));
+
+  /* ========= Start ========= */
+  setLevel(1);
+  animate();
+</script>
+</body>
+</html>
